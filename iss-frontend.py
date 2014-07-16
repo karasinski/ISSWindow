@@ -8,19 +8,24 @@ from subprocess import Popen, PIPE
 
 class StreamerProcess(object):
 
-    def __init__(self, script, name):
+    def __init__(self, cmd, name):
         self.script = script
-        self.process = Popen(
-            script, stdout=PIPE, shell=True, preexec_fn=setsid)
+        self.process = Popen(cmd, stdout=PIPE, shell=True, preexec_fn=setsid)
         self.name = name
+        print 'started process:', name
 
     def isAlive(self):
         # should return true if process is still running
         pass
 
     def kill(self):
-        killpg(self.process.pid, SIGTERM)
-        print 'killed process', self.name
+        try:
+            killpg(self.process.pid, SIGTERM)
+            print 'killed process', self.name
+            subprocesses = []
+        except Exception, e:
+            print 'Problem killing process:', e
+
 
 
 def get_data():
@@ -33,7 +38,7 @@ def get_data():
         data = response.read()
         return data
     except URLError, e:
-        print 'No data. Got an error code:', e
+        print 'No API data. Got an error code:', e
         return False
 
 
@@ -60,37 +65,27 @@ def main():
             status = 'connection, live feed'
 
             if len(subprocesses) == 0:
-                iss_streamer = StreamerProcess(
-                    './iss-streamer.sh', 'iss_streamer')
+                iss_streamer = StreamerProcess('./iss-streamer.sh', 'iss_streamer')
                 subprocesses.append(iss_streamer)
-                print 'started a process'
 
-        # display ground track
-        else:
+	else:
+            # display ground track
             status = 'connection, ground track'
-
-            try:
-                subprocesses[0].kill()
-                subprocesses = []
-            except Exception, e:
-                print 1, e
+            if len(subprocesses) > 0:
+	        subprocesses[0].kill()
 
     # no internet
     else:
         status = 'no connection'
-
-        try:
-            subprocesses[0].kill()
-            subprocesses = []
-        except Exception, e:
-            print 2, e
+	if len(subprocesses) > 0:
+	    subprocesses[0].kill()
 
     print strftime("\n%a, %d %b %Y %X +0000", gmtime()), status
     try:
         print 'length: ', len(subprocesses),
         print 'pid: ', subprocesses[0].process.pid
     except:
-        pass
+        print 'NA\n'
 
     sleep(15)
 
