@@ -9,24 +9,38 @@ from subprocess import Popen, PIPE
 class StreamerProcess(object):
 
     def __init__(self, cmd, name):
-        self.script = script
+        global subprocesses
         self.process = Popen(cmd, stdout=PIPE, shell=True, preexec_fn=setsid)
         self.name = name
+        print '+' * 30
         print 'started process:', name
+        print '+' * 30
 
     def isAlive(self):
         # should return true if process is still running
         pass
 
     def kill(self):
+        global subprocesses
         try:
             killpg(self.process.pid, SIGTERM)
+            print '-' * 30
             print 'killed process', self.name
+            print '-' * 30
             subprocesses = []
         except Exception, e:
             print 'Problem killing process:', e
 
+def streamer(cmd, name = None):
+    global subprocesses
 
+    if len(subprocesses) < 1:
+        subprocess = StreamerProcess(cmd, name)
+        subprocesses.append(subprocess)
+    elif subprocesses[0].name != name:
+        subprocesses[0].kill()
+        subprocess = StreamerProcess(cmd, name)
+        subprocesses.append(subprocess)
 
 def get_data():
     # api request
@@ -41,51 +55,39 @@ def get_data():
         print 'No API data. Got an error code:', e
         return False
 
-
 def visibility(last_data):
     if last_data['visibility'] == 'daylight':
         return True
     else:
         return False
 
-
 def main():
     global subprocesses
 
     # try to get the visibility data
     data = get_data()
-    status = ''
 
-    # we're connected to the internet
+    # plenty of internet
     if data:
         last_data = literal_eval(data)
 
         # display feed
         if visibility(last_data):
-            status = 'connection, live feed'
+            streamer('./iss-streamer.sh', 'hd iss streamer')
 
-            if len(subprocesses) == 0:
-                iss_streamer = StreamerProcess('./iss-streamer.sh', 'iss_streamer')
-                subprocesses.append(iss_streamer)
-
-	else:
-            # display ground track
-            status = 'connection, ground track'
-            if len(subprocesses) > 0:
-	        subprocesses[0].kill()
+        # display ground track
+        else:
+            streamer('./old-iss-streamer.sh', 'old iss streamer')
 
     # no internet
     else:
-        status = 'no connection'
-	if len(subprocesses) > 0:
-	    subprocesses[0].kill()
+        streamer('')
 
-    print strftime("\n%a, %d %b %Y %X +0000", gmtime()), status
+    print strftime("\n%a, %d %b %Y %X +0000", gmtime())
     try:
-        print 'length: ', len(subprocesses),
-        print 'pid: ', subprocesses[0].process.pid
+        print 'process running: %s, pid: %d' % (subprocesses[0].name, subprocesses[0].process.pid)
     except:
-        print 'NA\n'
+        print 'An error occurred, no process is '
 
     sleep(15)
 
