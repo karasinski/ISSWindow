@@ -81,7 +81,7 @@ def main():
 
     # no internet
     else:
-        streamer('')
+        streamer('', 'no internet')
 
     print strftime("\n%a, %d %b %Y %X +0000", gmtime())
     try:
